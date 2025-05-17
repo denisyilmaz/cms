@@ -19,7 +19,7 @@ use craft\base\RelationalFieldTrait;
 use craft\elements\db\ElementQueryInterface;
 use craft\elements\Entry as EntryElement;
 use craft\events\RegisterComponentTypesEvent;
-use craft\fields\conditions\TextFieldConditionRule;
+use craft\fields\conditions\LinkFieldConditionRule;
 use craft\fields\data\LinkData;
 use craft\fields\linktypes\Asset;
 use craft\fields\linktypes\BaseLinkType;
@@ -58,7 +58,7 @@ class Link extends Field implements InlineEditableFieldInterface, RelationalFiel
 
     /**
      * @event RegisterComponentTypesEvent The event that is triggered when registering the link types for Link fields.
-     * @see types()
+     * @see linkTypes()
      */
     public const EVENT_REGISTER_LINK_TYPES = 'registerLinkTypes';
 
@@ -119,7 +119,7 @@ class Link extends Field implements InlineEditableFieldInterface, RelationalFiel
     /**
      * @return array<string,class-string<BaseLinkType>>
      */
-    private static function types(): array
+    private static function linkTypes(): array
     {
         if (!isset(self::$_types)) {
             /** @var class-string<BaseLinkType>[] $types */
@@ -293,7 +293,7 @@ class Link extends Field implements InlineEditableFieldInterface, RelationalFiel
     {
         if (!isset($this->_linkTypes)) {
             $this->_linkTypes = [];
-            $types = self::types();
+            $types = self::linkTypes();
 
             foreach ($this->types as $typeId) {
                 if (isset($types[$typeId])) {
@@ -325,7 +325,7 @@ class Link extends Field implements InlineEditableFieldInterface, RelationalFiel
         }
 
         // See if any unselected types support it
-        foreach (self::types() as $typeId => $type) {
+        foreach (self::linkTypes() as $typeId => $type) {
             if (!isset($linkTypes[$typeId]) && $type !== UrlType::class) {
                 $linkType = Component::createComponent($type, BaseLinkType::class);
                 if ($linkType->supports($value)) {
@@ -359,7 +359,7 @@ class Link extends Field implements InlineEditableFieldInterface, RelationalFiel
         // get only the selected types
         /** @var Collection<string,class-string<BaseLinkType>> $selectedTypes */
         $selectedTypes = Collection::make();
-        foreach (self::types() as $typeId => $type) {
+        foreach (self::linkTypes() as $typeId => $type) {
             if (in_array($typeId, $this->types)) {
                 $selectedTypes[$typeId] = $type;
             }
@@ -367,8 +367,8 @@ class Link extends Field implements InlineEditableFieldInterface, RelationalFiel
 
         // now get the remaining types (if there are any)
         $remainingTypes = Collection::make();
-        if ($selectedTypes->count() < count(self::types())) {
-            $remainingTypes = Collection::make(self::types())
+        if ($selectedTypes->count() < count(self::linkTypes())) {
+            $remainingTypes = Collection::make(self::linkTypes())
                 ->filter(fn($value, $key) => !isset($selectedTypes[$key]))
                 // and sort them by label, with URL at the top
                 ->sort(function(string $a, string $b) {
@@ -572,7 +572,7 @@ class Link extends Field implements InlineEditableFieldInterface, RelationalFiel
             if (isset($linkTypes[$typeId])) {
                 $linkType = $linkTypes[$typeId];
             } else {
-                $type = self::types()[$typeId] ?? null;
+                $type = self::linkTypes()[$typeId] ?? null;
                 if (!$type) {
                     throw new InvalidArgumentException("Invalid link type: $typeId");
                 }
@@ -586,7 +586,7 @@ class Link extends Field implements InlineEditableFieldInterface, RelationalFiel
             }
 
             $typeId = $this->resolveType($value);
-            $linkType = $linkTypes[$typeId] ?? Component::createComponent(self::types()[$typeId], BaseLinkType::class);
+            $linkType = $linkTypes[$typeId] ?? Component::createComponent(self::linkTypes()[$typeId], BaseLinkType::class);
             $config = [];
         }
 
@@ -614,7 +614,7 @@ class Link extends Field implements InlineEditableFieldInterface, RelationalFiel
             $valueTypeId = $value->type;
 
             if (!isset($linkTypes[$valueTypeId])) {
-                $type = self::types()[$valueTypeId] ?? null;
+                $type = self::linkTypes()[$valueTypeId] ?? null;
                 if ($type) {
                     $linkTypes[$valueTypeId] = Component::createComponent($type, BaseLinkType::class);
                 } else {
@@ -833,7 +833,7 @@ JS;
                     $value = $element->getFieldValue($this->handle);
                     $linkTypes = $this->getLinkTypes();
                     if (!isset($linkTypes[$value->type])) {
-                        $type = self::types()[$value->type] ?? null;
+                        $type = self::linkTypes()[$value->type] ?? null;
                         $element->addError("field:$this->handle", Craft::t('app', '{attribute} no longer allows {type} links.', [
                             'attribute' => $this->getUiLabel(),
                             'type' => is_subclass_of($type, BaseLinkType::class) ? $type::displayName() : $type,
@@ -865,7 +865,7 @@ JS;
      */
     public function getElementConditionRuleType(): array|string|null
     {
-        return TextFieldConditionRule::class;
+        return LinkFieldConditionRule::class;
     }
 
     /**
